@@ -60,6 +60,10 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.organization=iransitumorang
+            -Dsonar.projectKey=Iransitumorang_tugas-project-sesi31
 
   k6-smoke-test:
     name: k6 Smoke Test
@@ -80,8 +84,8 @@ jobs:
 
       - name: Start Express App in Background
         run: |
-          npm start &
-          npx wait-on http://localhost:3000 --timeout 15000
+          node index.js &
+          npx wait-on http://localhost:3000 --timeout 20000
 
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
