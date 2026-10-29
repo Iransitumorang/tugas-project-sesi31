@@ -81,7 +81,7 @@ jobs:
       - name: Start Express App in Background
         run: |
           npm start &
-          npx wait-on http-get://localhost:3000/notes --timeout 15000
+          npx wait-on http://localhost:3000 --timeout 15000
 
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
