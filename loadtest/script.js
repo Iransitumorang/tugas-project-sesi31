@@ -1,25 +1,90 @@
-// loadtest/script.js
-import http from 'k6/http';
-import { sleep, check } from 'k6';
+name: CI / CD Pipeline - Sesi 31
 
-export const options = {
-  stages: [
-    { duration: '30s', target: 20 },
-    { duration: '1m', target: 50 },
-    { duration: '30s', target: 0 },
-  ],
-  thresholds: {
-    http_req_duration: ['p(95)<400'],
-    http_req_failed: ['rate<0.01'],
-  },
-};
+on:
+push:
+branches: ["**"]
+pull_request:
+branches: ["**"]
 
-const BASE = __ENV.BASE_URL || 'http://localhost:3000';
+jobs:
+lint:
+name: Lint(ESLint)
+runs - on: ubuntu - latest
+steps:
+- name: Checkout code
+uses: actions / checkout@v4
 
-export default function () {
-  const create = http.post(`${BASE}/notes`, JSON.stringify({ title: 't', body: 'b' }), { headers: { 'Content-Type': 'application/json' }});
-  check(create, { '201': r => r.status === 201 });
-  const list = http.get(`${BASE}/notes`);
-  check(list, { '200': r => r.status === 200 });
-  sleep(Math.random() * 0.5);
-}
+- name: Set up Node.js
+uses: actions / setup - node@v4
+with:
+node - version: '20'
+cache: 'npm'
+
+  - name: Install dependencies
+run: npm ci
+
+  - name: Run ESLint
+run: npm run lint
+
+test:
+name: Unit Test(Jest)
+runs - on: ubuntu - latest
+steps:
+- name: Checkout code
+uses: actions / checkout@v4
+
+- name: Set up Node.js
+uses: actions / setup - node@v4
+with:
+node - version: '20'
+cache: 'npm'
+
+  - name: Install dependencies
+run: npm ci
+
+  - name: Run Jest Unit Tests
+run: npm test
+
+sonarqube:
+name: SonarQube Scan
+needs: [lint, test]
+runs - on: ubuntu - latest
+steps:
+- name: Checkout code
+uses: actions / checkout@v4
+with:
+fetch - depth: 0
+
+  - name: SonarQube Scan
+uses: SonarSource / sonarqube - scan - action@v5
+env:
+SONAR_TOKEN: ${ { secrets.SONAR_TOKEN } }
+SONAR_HOST_URL: ${ { secrets.SONAR_HOST_URL } }
+
+k6 - smoke - test:
+name: k6 Smoke Test
+needs: [lint, test]
+runs - on: ubuntu - latest
+steps:
+- name: Checkout code
+uses: actions / checkout@v4
+
+- name: Set up Node.js
+uses: actions / setup - node@v4
+with:
+node - version: '20'
+cache: 'npm'
+
+  - name: Install dependencies
+run: npm ci
+
+  - name: Start Express App in Background
+run: |
+  npm start &
+    npx wait - on http://localhost:3000 --timeout 10000
+
+- name: Setup k6
+uses: grafana / setup - k6 - action@v1
+
+- name: Run k6 smoke test
+run: k6 run loadtest / script.js
