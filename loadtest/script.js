@@ -1,90 +1,19 @@
-name: CI / CD Pipeline - Sesi 31
+import http from 'k6/http';
+import { check, sleep } from 'k6';
 
-on:
-push:
-branches: ["**"]
-pull_request:
-branches: ["**"]
+export const options = {
+  vus: 1,
+  duration: '5s',
+  thresholds: {
+    http_req_failed: ['rate<0.1'],
+    http_req_duration: ['p(95)<500'],
+  },
+};
 
-jobs:
-lint:
-name: Lint(ESLint)
-runs - on: ubuntu - latest
-steps:
-- name: Checkout code
-uses: actions / checkout@v4
-
-- name: Set up Node.js
-uses: actions / setup - node@v4
-with:
-node - version: '20'
-cache: 'npm'
-
-  - name: Install dependencies
-run: npm ci
-
-  - name: Run ESLint
-run: npm run lint
-
-test:
-name: Unit Test(Jest)
-runs - on: ubuntu - latest
-steps:
-- name: Checkout code
-uses: actions / checkout@v4
-
-- name: Set up Node.js
-uses: actions / setup - node@v4
-with:
-node - version: '20'
-cache: 'npm'
-
-  - name: Install dependencies
-run: npm ci
-
-  - name: Run Jest Unit Tests
-run: npm test
-
-sonarqube:
-name: SonarQube Scan
-needs: [lint, test]
-runs - on: ubuntu - latest
-steps:
-- name: Checkout code
-uses: actions / checkout@v4
-with:
-fetch - depth: 0
-
-  - name: SonarQube Scan
-uses: SonarSource / sonarqube - scan - action@v5
-env:
-SONAR_TOKEN: ${ { secrets.SONAR_TOKEN } }
-SONAR_HOST_URL: ${ { secrets.SONAR_HOST_URL } }
-
-k6 - smoke - test:
-name: k6 Smoke Test
-needs: [lint, test]
-runs - on: ubuntu - latest
-steps:
-- name: Checkout code
-uses: actions / checkout@v4
-
-- name: Set up Node.js
-uses: actions / setup - node@v4
-with:
-node - version: '20'
-cache: 'npm'
-
-  - name: Install dependencies
-run: npm ci
-
-  - name: Start Express App in Background
-run: |
-  npm start &
-    npx wait - on http://localhost:3000 --timeout 10000
-
-- name: Setup k6
-uses: grafana / setup - k6 - action@v1
-
-- name: Run k6 smoke test
-run: k6 run loadtest / script.js
+export default function () {
+  const res = http.get('http://localhost:3000/notes');
+  check(res, {
+    'status is 200': (r) => r.status === 200,
+  });
+  sleep(1);
+}
